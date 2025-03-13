@@ -1,0 +1,249 @@
+---
+title: "Linear regression assignment"
+author: "Priya narisetty"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+install.packages("ISLR2")
+library(ISLR2)
+```
+
+# Boston data set analysis
+
+## Objective
+
+This analysis's objective is to forecast Boston's Median Value of Owner-Occupied Homes (abbreviated MEDV) based on a number of characteristics, such as LSTAT (lower status population). Understanding the main determinants of property prices allows us to better understand the social and economic circumstances of Boston areas, which may help with urban planning, real estate decisions, and policymaking.
+
+### Understanding and Preparing Data:
+
+Variables: MEDV (median home value), LSTAT (% of lower status population), CRIM (crime rate), AGE (proportion of old houses), TAX (property tax rate), and other variables are included in the dataset. These characteristics reflect different facets of the environment, socioeconomic condition, and housing market.
+
+Questions we are able to respond to: We can investigate how different characteristics relate to the median home value (MEDV). Do lower house values, for instance, correspond with a larger proportion of the lower-status population (LSTAT)? Does the house's age have an impact on its worth? Decisions about targeted governmental initiatives or urban development may be guided by these insights.
+
+## Data loading
+
+One well-known dataset from the UCI Machine Learning Repository is the Boston dataset, which can be accessed via R's MASS package. We will use the data, which offers information about Boston housing, to examine the connection between socioeconomic characteristics and home values.
+
+```{r load.data}
+data(boston)
+
+```
+
+### **Data exploration**
+
+### 
+
+Missing Values: To make sure the data is complete, we start by looking for missing values. In order to keep our model from being biased, handling missing data is essential.
+
+```{r missing values}
+missing_values <- Boston %>%
+  summarise(across(everything(), ~ sum(is.na(.))))
+print(missing_values)
+
+```
+
+If there are any columns with missing values, this output lets us know. Depending on the data context, we may choose to eliminate or impute any that exist.
+
+### Train-test split
+
+A train-test split is necessary to assess our model's performance. In order to assess the model's prediction ability, it is intended to be trained on a subset of the data (training data) and tested on unknown data (test data). This aids in evaluating the model's ability to generalize to fresh data.
+
+```{r}
+set.seed(123) # For reproducibility
+Boston_split = Boston %>%
+  mutate(id = row_number()) %>%
+  sample_frac(0.75)
+Boston = Boston %>% mutate(id = row_number())
+
+train_data = Boston_split
+test_data = anti_join(Boston, Boston_split, by = "id") #Remaining 25%
+
+
+```
+
+### Exploratory data analysis
+
+To understand the relationships between the variables, we can visualize the data.
+
+-   **Distribution of MEDV**: A histogram of **MEDV** helps us understand its distribution, whether it’s skewed or normally distributed.
+
+```{r histogram for medv}
+ggplot(Boston, aes(x = medv)) +
+  geom_histogram(fill = "steelblue", binwidth = 2, color = "white") +
+  labs(title = "distribution of Median Home Values",
+       x = "Median value ($1000s)",
+       y = "Count")
+
+
+```
+
+**LSTAT vs MEDV Scatterplot**: A scatter plot between **LSTAT** (lower status population) and **MEDV** (median home value) will help us visually inspect the relationship between these two variables.
+
+```{r LSTAT vs MEDV scatterplot}
+ggplot(Boston, aes(x = lstat, y=medv)) +
+   geom_point(alpha = 0.6, color = 'blue') +
+  labs(title = "Scatterplot: LSTAT vs. MEDV",
+       x = "Lower Status Population",
+       y = "Median Home Value ($1000s)")
+
+```
+
+This plot helps us see if a higher percentage of lower status population is associated with lower home values.
+
+#### Model Implementation and Explanation:
+
+In this section, we will implement and evaluate a **Simple Linear Regression** model to predict **MEDV** using **LSTAT**. Linear regression is a good fit because it models the relationship between the dependent variable (**MEDV**) and an independent variable (**LSTAT**) as a linear function.
+
+### Simple linear regression model
+
+```{r linear regression}
+lm.fit = lm(medv ~ lstat, data = train_data)
+summary(lm.fit)
+
+```
+
+The **summary** provides coefficients, standard errors, t-values, and p-values. The coefficients will tell us how much the median value of homes changes for each unit change in **LSTAT**.
+
+##### Apply Model to Test Data:
+
+Once we fit the model, we evaluate its performance by calculating the **Mean Squared Error (MSE)** on both the training and test data.
+
+```{r apply model to test_data}
+train_mse <- mean((train_data$medv - predict(lm.fit, train_data))^2)
+test_mse <- mean((test_data$medv - predict(lm.fit, test_data))^2)
+
+print(paste("Training MSE:", round(train_mse, 2)))
+print(paste("Test MSE:", round(test_mse, 2)))
+
+```
+
+The **MSE** is a metric used to measure the accuracy of the model. The lower the MSE, the better the model.
+
+##### Simple Linear Regression Results & Interpretation:
+
+From the linear regression model, we assess how well **LSTAT** predicts **MEDV**. If the p-value for **LSTAT** is significant (typically \<0.05), we can conclude that there is a statistically significant relationship between **LSTAT** and **MEDV**.
+
+#### Multiple Linear Regression:
+
+Next, we expand our model to include **multiple features** such as **LSTAT** and **AGE** to predict **MEDV**. This will help us see if including more features improves the model's predictive power.
+
+```{r}
+lm.multiple.fit = lm(medv ~ lstat + age, data = train_data)  
+summary(lm.multiple.fit)
+
+```
+
+The **summary** will show the coefficients for each predictor and whether they are statistically significant.
+
+### NHANES Data Analysis
+
+#### Objective:
+
+We aim to predict **BMI** using **Age**, **SmokeNow**, and **PhysActive** for individuals aged 18-70. This will help us understand how lifestyle factors (like smoking and physical activity) and age influence BMI.
+
+#### Data Understanding and Preparation:
+
+The **NHANES** dataset contains health and nutrition data, including **BMI**, **Age**, **SmokeNow** (smoking status), and **PhysActive** (physical activity status). We’ll use these variables to predict **BMI**.
+
+```{r}
+library(NHANES)
+data(NHANES)
+
+```
+
+We filter the data to include only individuals between the ages of 18 and 70.
+
+```{r}
+SMOKERS <- NHANES %>%
+  select(BMI, Age, SmokeNow, PhysActive) %>%
+  filter(Age >= 18 & Age <= 70)
+
+```
+
+#### Data Exploration:
+
+We’ll check for missing values in the selected data and visualize the relationships between variables.
+
+```{r}
+missing_values <- SMOKERS %>%
+  summarise(across(everything(), ~ sum(is.na(.))))
+print(missing_values)
+
+```
+
+#### Train-Test Split:
+
+We split the data into training and testing sets using a 75%-25% split.
+
+```{r}
+set.seed(123)
+SMOKERS <- SMOKERS %>% mutate(id = row_number())
+SMOKERS_split <- SMOKERS %>%
+  sample_frac(0.75)
+
+test_data <- anti_join(SMOKERS, SMOKERS_split, by = "id")
+train_data <- SMOKERS_split
+
+```
+
+### Exploratory data analysis
+
+Visualizations help us understand the distribution of **BMI** and relationships with other variables.
+
+```{r}
+ggplot(SMOKERS, aes(x = BMI)) +
+  geom_histogram(fill = "steelblue", binwidth = 5, color = "white") +
+  labs(title = "Distribution of BMI", x = "BMI", y = "Count")
+```
+
+We also plot **Age vs. BMI** to see if there is a trend in BMI with age.
+
+```{r}
+ggplot(SMOKERS, aes(x = Age, y = BMI)) +
+  geom_point(alpha = 0.6, color = 'blue') +
+  labs(title = "Scatterplot: Age vs. BMI", x = "Age", y = "BMI")
+```
+
+#### Model Implementation:
+
+##### Simple Linear Regression:
+
+First, we perform a simple linear regression with **Age** as the only predictor of **BMI**.
+
+```{r}
+lm.fit <- lm(BMI ~ Age, data = train_data)
+summary(lm.fit)
+```
+
+We then evaluate the model by calculating the **MSE**.
+
+```{r}
+train_mse = mean((train_data$BMI - predict(lm.fit, train_data))^2)
+test_mse = mean((test_data$BMI - predict(lm.fit, test_data))^2)
+print(paste("Training MSE:", round(train_mse, 2)))
+print(paste("Test MSE:", round(test_mse, 2)))
+```
+
+### Multiple linear regression
+
+Next, we use **Age**, **SmokeNow**, and **PhysActive** to predict **BMI**.
+
+```{r}
+lm.multiple.fit = lm(BMI ~ Age + SmokeNow + PhysActive, data = train_data)  
+summary(lm.multiple.fit)
+
+```
+
+We assess how well these factors contribute to predicting **BMI**.
+
+```{r}
+train_mse = mean((train_data$BMI - predict(lm.multiple.fit, train_data))^2)
+test_mse = mean((test_data$BMI - predict(lm.multiple.fit, test_data))^2)
+print(paste("Training MSE:", round(train_mse, 2)))
+print(paste("Test MSE:", round(test_mse, 2)))
+```
